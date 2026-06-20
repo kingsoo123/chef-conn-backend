@@ -1,0 +1,2 @@
+ALTER TABLE bookings
+  ALTER COLUMN host_email DROP NOT NULL;
