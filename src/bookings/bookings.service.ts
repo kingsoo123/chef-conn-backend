@@ -62,8 +62,34 @@ export class BookingsService {
     };
   }
 
-  async listForChef(userId: string) {
+  async listForChef(userId: string, since?: string) {
     const profile = await this.findChefProfileForUser(userId);
+
+    if (since) {
+      const sinceDate = new Date(since);
+
+      if (Number.isNaN(sinceDate.getTime())) {
+        throw new BadRequestException('Invalid since timestamp');
+      }
+
+      const bookings = await this.bookingsRepository
+        .createQueryBuilder('booking')
+        .where('booking.chef_profile_id = :chefProfileId', {
+          chefProfileId: profile.id,
+        })
+        .andWhere(
+          '(booking.created_at > :since OR booking.updated_at > :since)',
+          { since: sinceDate },
+        )
+        .orderBy('booking.created_at', 'DESC')
+        .take(100)
+        .getMany();
+
+      return {
+        data: bookings.map((booking) => mapBookingToResponse(booking)),
+        syncedAt: new Date().toISOString(),
+      };
+    }
 
     const bookings = await this.bookingsRepository.find({
       where: { chefProfileId: profile.id },
@@ -72,9 +98,8 @@ export class BookingsService {
     });
 
     return {
-      data: bookings.map((booking) =>
-        mapBookingToResponse(booking),
-      ),
+      data: bookings.map((booking) => mapBookingToResponse(booking)),
+      syncedAt: new Date().toISOString(),
     };
   }
 

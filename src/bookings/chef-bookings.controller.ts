@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Patch,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ChefAuthGuard } from '../auth/guards/chef-auth.guard';
@@ -17,8 +18,11 @@ export class ChefBookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
 
   @Get()
-  list(@CurrentUser() user: { id: string }) {
-    return this.bookingsService.listForChef(user.id);
+  list(
+    @CurrentUser() user: { id: string },
+    @Query('since') since?: string,
+  ) {
+    return this.bookingsService.listForChef(user.id, since);
   }
 
   @Patch(':bookingId')
