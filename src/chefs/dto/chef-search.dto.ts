@@ -20,10 +20,10 @@ const SORT_OPTIONS = [
 
 const PRICE_RANGE_OPTIONS = [
   'all',
-  'under-200',
-  '200-400',
-  '400-600',
-  '600-plus',
+  'under-50k',
+  '50k-100k',
+  '100k-150k',
+  '150k-plus',
 ] as const;
 
 function parseCsv(value: unknown): string[] | undefined {

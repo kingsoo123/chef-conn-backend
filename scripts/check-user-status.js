@@ -31,11 +31,14 @@ for (const fileName of ['.env.local', '.env']) {
 }
 
 async function main() {
+  const databaseUrl = process.env.DATABASE_URL ?? '';
+  const requiresSsl =
+    databaseUrl.includes('neon.tech') ||
+    databaseUrl.includes('supabase') ||
+    databaseUrl.includes('sslmode=require');
   const client = new Client({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL?.includes('supabase')
-      ? { rejectUnauthorized: false }
-      : false,
+    connectionString: databaseUrl,
+    ssl: requiresSsl ? { rejectUnauthorized: false } : false,
   });
 
   await client.connect();

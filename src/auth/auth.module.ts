@@ -5,11 +5,12 @@ import { User } from '../users/user.entity';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ChefAuthGuard } from './guards/chef-auth.guard';
+import { OptionalAuthGuard } from './guards/optional-auth.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([User, ChefProfile])],
   controllers: [AuthController],
-  providers: [AuthService, ChefAuthGuard],
-  exports: [AuthService, ChefAuthGuard],
+  providers: [AuthService, ChefAuthGuard, OptionalAuthGuard],
+  exports: [AuthService, ChefAuthGuard, OptionalAuthGuard],
 })
 export class AuthModule {}

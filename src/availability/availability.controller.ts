@@ -58,7 +58,7 @@ export class AvailabilityController {
     const feed = await this.availabilityService.getCalendarFeedForChef(user.id);
     response.setHeader(
       'Content-Disposition',
-      'attachment; filename="chefconnect-calendar.ics"',
+      'attachment; filename="uber-chef-calendar.ics"',
     );
     response.send(feed);
   }

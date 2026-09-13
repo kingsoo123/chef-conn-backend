@@ -6,6 +6,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { BookingsModule } from './bookings/bookings.module';
 import { AvailabilityModule } from './availability/availability.module';
+import { BillingModule } from './billing/billing.module';
 import { ChatModule } from './chat/chat.module';
 import { ChefsModule } from './chefs/chefs.module';
 import appConfig, { requireEnv } from './config/configuration';
@@ -22,7 +23,10 @@ import { SupabaseModule } from './supabase/supabase.module';
       inject: [ConfigService],
       useFactory: () => {
         const databaseUrl = requireEnv('DATABASE_URL');
-        const usesSupabase = databaseUrl.includes('supabase');
+        const requiresSsl =
+          databaseUrl.includes('neon.tech') ||
+          databaseUrl.includes('supabase') ||
+          databaseUrl.includes('sslmode=require');
 
         return {
           type: 'postgres' as const,
@@ -30,7 +34,7 @@ import { SupabaseModule } from './supabase/supabase.module';
           autoLoadEntities: true,
           synchronize: process.env.TYPEORM_SYNCHRONIZE === 'true',
           logging: process.env.TYPEORM_LOGGING === 'true',
-          ssl: usesSupabase ? { rejectUnauthorized: false } : false,
+          ssl: requiresSsl ? { rejectUnauthorized: false } : false,
         };
       },
     }),
@@ -40,6 +44,7 @@ import { SupabaseModule } from './supabase/supabase.module';
     ChatModule,
     BookingsModule,
     AvailabilityModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

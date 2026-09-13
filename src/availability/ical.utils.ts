@@ -79,15 +79,15 @@ export function buildChefCalendarFeed(input: {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//ChefConnect//Chef Availability//EN',
+    'PRODID:-//Uber-chef//Chef Availability//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
-    'X-WR-CALNAME:ChefConnect - ' + escapeIcsText(input.chefName),
+    'X-WR-CALNAME:Uber-chef - ' + escapeIcsText(input.chefName),
   ];
 
   for (const blockedDate of input.blockedDates) {
     lines.push('BEGIN:VEVENT');
-    lines.push(`UID:blocked-${blockedDate}@chefconnect.app`);
+    lines.push(`UID:blocked-${blockedDate}@uber-chef.app`);
     lines.push(`DTSTAMP:${formatIcsUtcDateTime(new Date())}`);
     lines.push(`DTSTART;VALUE=DATE:${blockedDate.replace(/-/g, '')}`);
     lines.push(`DTEND;VALUE=DATE:${addDaysToIsoDate(blockedDate, 1)}`);
@@ -119,7 +119,7 @@ export function buildChefCalendarFeed(input: {
     end.setHours(end.getHours() + 2);
 
     lines.push('BEGIN:VEVENT');
-    lines.push(`UID:booking-${booking.id}@chefconnect.app`);
+    lines.push(`UID:booking-${booking.id}@uber-chef.app`);
     lines.push(`DTSTAMP:${formatIcsUtcDateTime(new Date())}`);
     lines.push(`DTSTART:${formatIcsUtcDateTime(start)}`);
     lines.push(`DTEND:${formatIcsUtcDateTime(end)}`);

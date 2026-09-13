@@ -3,7 +3,7 @@ import { sign } from 'jsonwebtoken';
 const LOCAL_JWT_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 7;
 
 export function getJwtSecret(): string {
-  return process.env.JWT_SECRET?.trim() || 'chefconnect-local-dev-secret';
+  return process.env.JWT_SECRET?.trim() || 'uber-chef-local-dev-secret';
 }
 
 export function createLocalAccessToken(payload: {

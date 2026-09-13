@@ -15,10 +15,10 @@ const PRICE_RANGES: Record<
   { min: number; max: number }
 > = {
   all: { min: 0, max: Number.MAX_SAFE_INTEGER },
-  'under-200': { min: 0, max: 199 },
-  '200-400': { min: 200, max: 399 },
-  '400-600': { min: 400, max: 599 },
-  '600-plus': { min: 600, max: Number.MAX_SAFE_INTEGER },
+  'under-50k': { min: 0, max: 49999 },
+  '50k-100k': { min: 50000, max: 99999 },
+  '100k-150k': { min: 100000, max: 149999 },
+  '150k-plus': { min: 150000, max: Number.MAX_SAFE_INTEGER },
 };
 
 @Injectable()
@@ -36,7 +36,7 @@ export class ChefsService {
 
     const qb = this.chefProfilesRepository
       .createQueryBuilder('profile')
-      .where('profile.status = :status', { status: 'approved' });
+      .where('profile.status != :rejected', { rejected: 'rejected' });
 
     this.applyFilters(qb, dto);
 
@@ -61,10 +61,10 @@ export class ChefsService {
 
   async findBySlug(slug: string) {
     const profile = await this.chefProfilesRepository.findOne({
-      where: { slug, status: 'approved' },
+      where: { slug },
     });
 
-    if (!profile) {
+    if (!profile || profile.status === 'rejected') {
       throw new NotFoundException('Chef not found');
     }
 

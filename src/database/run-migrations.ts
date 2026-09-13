@@ -114,10 +114,13 @@ export async function runDatabaseMigrations(): Promise<void> {
   loadEnvFiles();
 
   const databaseUrl = requireEnv('DATABASE_URL');
-  const usesSupabase = databaseUrl.includes('supabase');
+  const requiresSsl =
+    databaseUrl.includes('neon.tech') ||
+    databaseUrl.includes('supabase') ||
+    databaseUrl.includes('sslmode=require');
   const client = new Client({
     connectionString: databaseUrl,
-    ssl: usesSupabase ? { rejectUnauthorized: false } : false,
+    ssl: requiresSsl ? { rejectUnauthorized: false } : false,
   });
 
   await client.connect();

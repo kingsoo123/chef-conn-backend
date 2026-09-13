@@ -4,7 +4,7 @@ const projectRef = 'rsmlksmttffjywqxzwdc';
 const dashboardUrl = `https://supabase.com/dashboard/project/${projectRef}/settings/api`;
 
 console.log(`
-ChefConnect backend setup
+Uber-chef backend setup
 =========================
 
 1. Open your Supabase API settings:

@@ -45,7 +45,7 @@ export class ChefProfile {
   @Column({ type: 'varchar', unique: true, nullable: true })
   slug: string | null;
 
-  @Column({ name: 'price_per_day', type: 'int', default: 350 })
+  @Column({ name: 'price_per_day', type: 'int', default: 75000 })
   pricePerDay: number;
 
   @Column({ type: 'decimal', precision: 2, scale: 1, default: 0 })
