@@ -1,6 +1,6 @@
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { Client } from 'pg';
+import { Client } from './neon';
 import { requireEnv } from '../config/configuration';
 
 const MIGRATION_FILES = [
@@ -18,6 +18,9 @@ const MIGRATION_FILES = [
   '012_booking_location_fields.sql',
   '013_chef_availability.sql',
   '014_availability_extensions.sql',
+  '015_restore_ngn_pricing.sql',
+  '016_subscriptions.sql',
+  '017_activity_events_and_admin.sql',
 ];
 
 function loadEnvFiles() {
@@ -114,13 +117,8 @@ export async function runDatabaseMigrations(): Promise<void> {
   loadEnvFiles();
 
   const databaseUrl = requireEnv('DATABASE_URL');
-  const requiresSsl =
-    databaseUrl.includes('neon.tech') ||
-    databaseUrl.includes('supabase') ||
-    databaseUrl.includes('sslmode=require');
   const client = new Client({
     connectionString: databaseUrl,
-    ssl: requiresSsl ? { rejectUnauthorized: false } : false,
   });
 
   await client.connect();

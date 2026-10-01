@@ -2,9 +2,11 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ActivityService } from '../activity/activity.service';
 import { AvailabilityService } from '../availability/availability.service';
 import { ChefProfile } from '../chefs/chef-profile.entity';
 import { mapServicesToApi } from '../chefs/chef.mapper';
@@ -21,6 +23,8 @@ export class BookingsService {
     @InjectRepository(ChefProfile)
     private readonly chefProfilesRepository: Repository<ChefProfile>,
     private readonly availabilityService: AvailabilityService,
+    @Optional()
+    private readonly activityService: ActivityService | null,
   ) {}
 
   async createForChefSlug(slug: string, dto: CreateBookingDto) {
@@ -56,6 +60,30 @@ export class BookingsService {
     });
 
     const saved = await this.bookingsRepository.save(booking);
+
+    if (this.activityService) {
+      try {
+        await this.activityService.record({
+          type: 'booking_created',
+          source: 'web',
+          actorEmail: saved.hostEmail,
+          title: 'Booking created',
+          summary: `${saved.hostName} booked ${profile.displayName} for ${saved.service}`,
+          payload: {
+            bookingId: saved.id,
+            chefProfileId: profile.id,
+            chefSlug: profile.slug,
+            location: saved.location,
+            country: saved.country,
+            state: saved.state,
+            eventDate: saved.eventDate,
+            status: saved.status,
+          },
+        });
+      } catch {
+        // non-blocking
+      }
+    }
 
     return {
       booking: mapBookingToResponse(saved),
@@ -123,8 +151,29 @@ export class BookingsService {
 
     this.assertStatusTransition(booking.status, dto.status);
 
+    const previousStatus = booking.status;
     booking.status = dto.status;
     const saved = await this.bookingsRepository.save(booking);
+
+    if (this.activityService) {
+      try {
+        await this.activityService.record({
+          type: 'booking_status_changed',
+          source: 'web',
+          actorUserId: userId,
+          actorEmail: saved.hostEmail,
+          title: 'Booking status updated',
+          summary: `Booking ${saved.id} moved to ${saved.status}`,
+          payload: {
+            bookingId: saved.id,
+            status: saved.status,
+            previousStatus,
+          },
+        });
+      } catch {
+        // non-blocking
+      }
+    }
 
     return {
       booking: mapBookingToResponse(saved),

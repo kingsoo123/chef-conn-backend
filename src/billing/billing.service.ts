@@ -3,10 +3,12 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
 import { Repository } from 'typeorm';
+import { ActivityService } from '../activity/activity.service';
 import { User } from '../users/user.entity';
 import { CreateCheckoutDto } from './dto/checkout.dto';
 import { FlutterwaveClient } from './flutterwave.client';
@@ -30,6 +32,8 @@ export class BillingService {
     @InjectRepository(User)
     private readonly usersRepository: Repository<User>,
     private readonly flutterwaveClient: FlutterwaveClient,
+    @Optional()
+    private readonly activityService: ActivityService | null,
   ) {}
 
   async createCheckout(
@@ -72,6 +76,23 @@ export class BillingService {
     });
 
     await this.subscriptionsRepository.save(subscription);
+
+    await this.recordBillingActivity({
+      type: 'payment_checkout_started',
+      actorUserId: userId,
+      actorEmail: email,
+      title: 'Checkout started',
+      summary: `${dto.customerName.trim()} started ${dto.planId} checkout (${dto.billing})`,
+      payload: {
+        subscriptionId: subscription.id,
+        txRef,
+        audience: dto.audience,
+        planId: dto.planId,
+        billing: dto.billing,
+        amount,
+        currency,
+      },
+    });
 
     const paymentLink = await this.flutterwaveClient.createPaymentLink({
       txRef,
@@ -246,6 +267,23 @@ export class BillingService {
     }
 
     await this.subscriptionsRepository.save(subscription);
+
+    await this.recordBillingActivity({
+      type: 'payment_completed',
+      actorUserId: subscription.userId,
+      actorEmail: subscription.email,
+      title: 'Payment completed',
+      summary: `${subscription.customerName} activated ${subscription.planId} (${subscription.billingInterval})`,
+      payload: {
+        subscriptionId: subscription.id,
+        txRef: subscription.txRef,
+        audience: subscription.audience,
+        planId: subscription.planId,
+        amount: subscription.amount,
+        currency: subscription.currency,
+      },
+    });
+
     return this.toPublicSubscription(subscription);
   }
 
@@ -266,9 +304,56 @@ export class BillingService {
       subscription.status = 'failed';
       subscription.flwTransactionId = transactionId;
       await this.subscriptionsRepository.save(subscription);
+
+      await this.recordBillingActivity({
+        type: 'payment_failed',
+        actorUserId: subscription.userId,
+        actorEmail: subscription.email,
+        title: 'Payment failed',
+        summary: `${subscription.customerName} payment failed for ${subscription.planId}`,
+        payload: {
+          subscriptionId: subscription.id,
+          txRef: subscription.txRef,
+          audience: subscription.audience,
+          planId: subscription.planId,
+          amount: subscription.amount,
+          currency: subscription.currency,
+        },
+      });
     }
 
     return this.toPublicSubscription(subscription);
+  }
+
+  private async recordBillingActivity(input: {
+    type: 'payment_checkout_started' | 'payment_completed' | 'payment_failed';
+    actorUserId: string | null;
+    actorEmail: string;
+    title: string;
+    summary: string;
+    payload: Record<string, unknown>;
+  }) {
+    if (!this.activityService) {
+      return;
+    }
+
+    try {
+      await this.activityService.record({
+        type: input.type,
+        source: 'web',
+        actorUserId: input.actorUserId,
+        actorEmail: input.actorEmail,
+        title: input.title,
+        summary: input.summary,
+        payload: input.payload,
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Failed to record billing activity: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`,
+      );
+    }
   }
 
   private toPublicSubscription(subscription: Subscription) {

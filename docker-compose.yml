@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chef-conn-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: chefconn
+      POSTGRES_PASSWORD: chefconn
+      POSTGRES_DB: chefconn
+    volumes:
+      - chef_conn_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chefconn -d chefconn"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  chef_conn_pgdata:

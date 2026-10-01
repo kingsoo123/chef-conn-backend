@@ -52,6 +52,12 @@ export class AuthController {
     return this.authService.hostSignIn(dto);
   }
 
+  @Post('admin/signin')
+  @HttpCode(200)
+  adminSignIn(@Body() dto: ChefSignInDto) {
+    return this.authService.adminSignIn(dto);
+  }
+
   @Get('session')
   @UseGuards(ChefAuthGuard)
   getSession(@CurrentUser() user: { id: string }) {

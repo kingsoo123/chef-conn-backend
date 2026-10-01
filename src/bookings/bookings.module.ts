@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ActivityModule } from '../activity/activity.module';
 import { AuthModule } from '../auth/auth.module';
 import { AvailabilityModule } from '../availability/availability.module';
 import { ChefProfile } from '../chefs/chef-profile.entity';
@@ -13,6 +14,7 @@ import { GuestBookingsController } from './guest-bookings.controller';
     TypeOrmModule.forFeature([Booking, ChefProfile]),
     AuthModule,
     AvailabilityModule,
+    ActivityModule,
   ],
   controllers: [GuestBookingsController, ChefBookingsController],
   providers: [BookingsService],

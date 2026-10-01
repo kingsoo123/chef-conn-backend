@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Inject,
   Injectable,
   InternalServerErrorException,
@@ -12,6 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'node:crypto';
 import { DataSource, Repository } from 'typeorm';
+import { ActivityService } from '../activity/activity.service';
 import { ChefProfile } from '../chefs/chef-profile.entity';
 import { buildUniqueChefSlug } from '../chefs/slug.util';
 import { isSupabaseAuthConfigured } from '../config/supabase.config';
@@ -24,6 +26,8 @@ import { ChefUpdateProfileRequestDto } from './dto/chef-update-profile.dto';
 import { HostSignupDto } from './dto/host-signup.dto';
 import { createLocalAccessToken } from './local-token.service';
 
+const ADMIN_EMAIL = 'hello@zenithinnovation.com.ng';
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -35,6 +39,8 @@ export class AuthService {
     @InjectRepository(ChefProfile)
     private readonly chefProfilesRepository: Repository<ChefProfile>,
     private readonly dataSource: DataSource,
+    @Optional()
+    private readonly activityService: ActivityService | null,
   ) {}
 
   async chefSignup(dto: ChefSignupDto) {
@@ -149,6 +155,22 @@ export class AuthService {
     }
 
     return this.localHostSignIn(dto.email.trim().toLowerCase(), dto.password);
+  }
+
+  async adminSignIn(dto: ChefSignInDto) {
+    const email = dto.email.trim().toLowerCase();
+
+    if (email !== ADMIN_EMAIL) {
+      throw new ForbiddenException('This admin console is restricted to the authorized operator');
+    }
+
+    if (isSupabaseAuthConfigured() && this.supabaseService) {
+      throw new BadRequestException(
+        'Admin sign-in uses local credentials. Disable Supabase auth for local admin access, or seed the admin user in Supabase.',
+      );
+    }
+
+    return this.localAdminSignIn(email, dto.password);
   }
 
   async updateChefProfile(userId: string, dto: ChefUpdateProfileRequestDto) {
@@ -298,6 +320,14 @@ export class AuthService {
       role: user.role,
     });
 
+    await this.recordAuthActivity({
+      type: 'user_signed_in',
+      source: 'web',
+      user,
+      title: 'Chef signed in',
+      summary: `${user.email} signed in on web`,
+    });
+
     return this.formatAuthResponse(user, chefProfile, {
       accessToken,
       refreshToken: null,
@@ -334,6 +364,14 @@ export class AuthService {
       role: user.role,
     });
 
+    await this.recordAuthActivity({
+      type: 'user_signed_up',
+      source: 'web',
+      user,
+      title: 'Host signed up',
+      summary: `${user.email} created a host account`,
+    });
+
     return this.formatHostAuthResponse(user, {
       accessToken,
       refreshToken: null,
@@ -368,11 +406,92 @@ export class AuthService {
       role: user.role,
     });
 
+    await this.recordAuthActivity({
+      type: 'user_signed_in',
+      source: 'web',
+      user,
+      title: 'Host signed in',
+      summary: `${user.email} signed in on web`,
+    });
+
     return this.formatHostAuthResponse(user, {
       accessToken,
       refreshToken: null,
       expiresIn,
     });
+  }
+
+  private async localAdminSignIn(email: string, password: string) {
+    const user = await this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.email = :email', { email })
+      .getOne();
+
+    if (!user?.passwordHash || user.role !== 'admin') {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.passwordHash);
+
+    if (!passwordMatches) {
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    const { accessToken, expiresIn } = createLocalAccessToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+    });
+
+    await this.recordAuthActivity({
+      type: 'user_signed_in',
+      source: 'admin',
+      user,
+      title: 'Admin signed in',
+      summary: `${user.email} signed in to the admin console`,
+    });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+      session: {
+        accessToken,
+        refreshToken: null,
+        expiresIn,
+      },
+    };
+  }
+
+  private async recordAuthActivity(input: {
+    type: 'user_signed_in' | 'user_signed_up' | 'user_signed_out';
+    source: string;
+    user: User;
+    title: string;
+    summary: string;
+  }) {
+    if (!this.activityService) {
+      return;
+    }
+
+    try {
+      await this.activityService.record({
+        type: input.type,
+        source: input.source,
+        actorUserId: input.user.id,
+        actorEmail: input.user.email,
+        title: input.title,
+        summary: input.summary,
+        payload: { role: input.user.role },
+      });
+    } catch {
+      // Activity logging must never block auth.
+    }
   }
 
   private async supabaseChefSignIn(email: string, password: string) {
